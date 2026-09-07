@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fusion — le jeu de puzzle coloré</title>
+<style>
+  :root{
+    --bg-top: #FFF4E0;
+    --bg-bot: #FFE3EC;
+    --ink: #3B2E4A;
+    --ink-soft: #7A6E8C;
+    --board: #EDE3F4;
+    --panel: #FFFFFF;
+    --accent: #FF6B6B;
+    --accent-2: #4ECDC4;
+    --accent-3: #FFD166;
+    --shadow: rgba(59, 46, 74, 0.18);
+    --radius: 18px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family: 'Baloo 2', 'Trebuchet MS', 'Segoe UI', sans-serif;
+    background: linear-gradient(160deg, var(--bg-top), var(--bg-bot));
+    color: var(--ink);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 20px 16px 48px;
+  }
+
+  h1{
+    font-size: clamp(2rem, 6vw, 3rem);
+    margin: 4px 0 2px;
+    letter-spacing: 0.5px;
+    text-align:center;
+  }
+  h1 span{
+    display:inline-block;
+    transform: rotate(-3deg);
+    color: var(--accent);
+  }
+
+  .tagline{
+    color: var(--ink-soft);
+    margin: 0 0 16px;
+    text-align:center;
+    font-size: 1rem;
+    max-width: 380px;
+  }
+
+  /* ===== ZONE PUBLICITAIRE (bannière) =====
+     En production, remplacez le contenu de #ad-banner par le tag fourni
+     par votre régie publicitaire, par exemple pour Google AdSense :
+     <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXX"
+          data-ad-slot="XXXX" data-ad-format="auto"></ins>
+     <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+     Gardez une taille réservée fixe pour éviter que la page ne "saute". */
+  .ad-banner{
+    width: min(92vw, 420px);
+    min-height: 50px;
+    background: repeating-linear-gradient(45deg, #ffffff, #ffffff 10px, #f2ecf7 10px, #f2ecf7 20px);
+    border: 1.5px dashed #C9BEDB;
+    border-radius: 10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    letter-spacing: 0.3px;
+  }
+
+  .topbar{
+    width:100%;
+    max-width: 420px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    margin-bottom: 12px;
+  }
+
+  .statbox{
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 6px 12px;
+    box-shadow: 0 6px 0 var(--shadow);
+    text-align:center;
+    min-width: 62px;
+  }
+  .statbox .label{
+    font-size: 0.62rem;
+    color: var(--ink-soft);
+    font-weight: 700;
+  }
+  .statbox .value{
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+  .statbox.coins .value{ color: #E8A100; }
+
+  .iconbtn{
+    background: var(--panel);
+    border: none;
+    border-radius: 14px;
+    padding: 10px 14px;
+    font-size: 1.2rem;
+    cursor:pointer;
+    box-shadow: 0 6px 0 var(--shadow);
+  }
+  .iconbtn:active{ transform: translateY(4px); box-shadow: 0 2px 0 var(--shadow); }
+
+  .actionrow{
+    width:100%;
+    max-width: 420px;
+    display:flex;
+    gap:8px;
+    margin-bottom: 16px;
+  }
+  .actionrow button{
+    flex:1;
+    border:none;
+    border-radius: 14px;
+    padding: 11px 10px;
+    font-size: 0.92rem;
+    font-weight: 800;
+    font-family: inherit;
+    cursor:pointer;
+    color:white;
+    transition: transform 0.08s ease;
+  }
+  #newgame{ background: var(--accent); box-shadow: 0 6px 0 #C9403F; }
+  #newgame:active{ transform: translateY(4px); box-shadow: 0 2px 0 #C9403F; }
+  #shopbtn{ background: var(--accent-2); box-shadow: 0 6px 0 #2FA79E; }
+  #shopbtn:active{ transform: translateY(4px); box-shadow: 0 2px 0 #2FA79E; }
+
+  #board-wrap{
+    position: relative;
+    width: min(92vw, 420px);
+    aspect-ratio: 1 / 1;
+    background: var(--board);
+    border-radius: var(--radius);
+    padding: 10px;
+    box-shadow: 0 10px 0 var(--shadow), 0 14px 30px rgba(59,46,74,0.15);
+    touch-action: none;
+  }
+
+  #grid-bg{
+    position:absolute;
+    inset:10px;
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .cell-bg{
+    background: rgba(255,255,255,0.55);
+    border-radius: 12px;
+  }
+
+  #tiles{ position:absolute; inset:10px; }
+
+  .tile{
+    position:absolute;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius: 12px;
+    font-weight: 800;
+    font-family: inherit;
+    transition: top 0.12s ease, left 0.12s ease;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.08);
+  }
+  .tile-new{ animation: pop 0.18s ease; }
+  .tile-merged{ animation: bump 0.18s ease; z-index: 2; }
+  @keyframes pop{ 0%{transform:scale(0);} 80%{transform:scale(1.12);} 100%{transform:scale(1);} }
+  @keyframes bump{ 0%{transform:scale(1);} 50%{transform:scale(1.18);} 100%{transform:scale(1);} }
+
+  .msg-overlay{
+    position:absolute; inset:10px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 12px; text-align:center; padding: 20px;
+    opacity:0; pointer-events:none; transition: opacity 0.2s ease;
+  }
+  .msg-overlay.show{ opacity:1; pointer-events:all; }
+  .msg-overlay h2{ margin:0; font-size: 1.5rem; }
+  .msg-overlay p{ margin:0; color: var(--ink-soft); font-size: 0.9rem; }
+  .msg-overlay button{
+    background: var(--accent-2); color: white; border:none; border-radius: 12px;
+    padding: 10px 22px; font-weight:800; font-family: inherit; font-size: 1rem;
+    cursor:pointer; box-shadow: 0 5px 0 #2FA79E;
+  }
+
+  /* ===== Boutique ===== */
+  .modal-backdrop{
+    position:fixed; inset:0; background: rgba(59,46,74,0.55);
+    display:none; align-items:center; justify-content:center; z-index: 50;
+    padding: 20px;
+  }
+  .modal-backdrop.show{ display:flex; }
+  .modal{
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 20px;
+    width: min(92vw, 420px);
+    max-height: 80vh;
+    overflow-y:auto;
+    box-shadow: 0 14px 0 var(--shadow);
+  }
+  .modal h2{ margin: 0 0 4px; }
+  .modal .coinsline{ color:#E8A100; font-weight:800; margin-bottom: 14px; }
+  .close-x{
+    float:right; background:none; border:none; font-size:1.3rem;
+    cursor:pointer; color: var(--ink-soft);
+  }
+
+  .rewardbtn{
+    width:100%; border:none; border-radius: 12px; padding: 12px;
+    background: var(--accent-3); color: var(--ink); font-weight: 800;
+    font-family: inherit; font-size: 0.92rem; cursor:pointer; margin-bottom: 16px;
+    box-shadow: 0 5px 0 #D9AC3F;
+  }
+  .rewardbtn:disabled{ opacity: 0.6; cursor: default; }
+
+  .theme-list{ display:flex; flex-direction:column; gap: 10px; }
+  .theme-card{
+    display:flex; align-items:center; gap: 12px;
+    border: 2px solid #EEE7F6; border-radius: 14px; padding: 10px 12px;
+  }
+  .theme-card.active{ border-color: var(--accent-2); }
+  .swatches{ display:flex; gap:4px; }
+  .swatch{ width:16px; height:16px; border-radius: 4px; }
+  .theme-info{ flex:1; }
+  .theme-info .name{ font-weight: 800; font-size: 0.94rem; }
+  .theme-info .cost{ font-size: 0.78rem; color: var(--ink-soft); }
+  .theme-card button{
+    border:none; border-radius: 10px; padding: 8px 12px; font-weight: 800;
+    font-family: inherit; font-size: 0.82rem; cursor:pointer; color:white;
+  }
+  .btn-buy{ background: var(--accent); }
+  .btn-use{ background: var(--accent-2); }
+  .btn-active{ background: #C9BEDB; cursor: default; }
+
+  .howto{
+    margin-top: 22px; max-width: 420px; text-align:center;
+    color: var(--ink-soft); font-size: 0.9rem; line-height: 1.5;
+  }
+  .howto strong{ color: var(--ink); }
+  footer{ margin-top: 24px; font-size: 0.78rem; color: var(--ink-soft); opacity: 0.7; }
+</style>
+</head>
+<body>
+
+  <h1>Fu<span>sion</span></h1>
+  <p class="tagline">Glissez les tuiles, associez les mêmes couleurs, atteignez la tuile arc-en-ciel !</p>
+
+  <!-- Zone publicitaire réservée (bannière) -->
+  <div class="ad-banner" id="ad-banner">Espace publicitaire</div>
+
+  <div class="topbar">
+    <div class="statbox">
+      <div class="label">SCORE</div>
+      <div class="value" id="score">0</div>
+    </div>
+    <div class="statbox">
+      <div class="label">MEILLEUR</div>
+      <div class="value" id="best">0</div>
+    </div>
+    <div class="statbox coins">
+      <div class="label">PIÈCES</div>
+      <div class="value" id="coins">0</div>
+    </div>
+  </div>
+
+  <div class="actionrow">
+    <button id="newgame">Nouvelle partie</button>
+    <button id="shopbtn">🛍️ Boutique</button>
+    <button id="soundbtn" style="flex:0 0 auto; background:var(--accent-3); color:var(--ink); box-shadow:0 6px 0 #D9AC3F;">🔊</button>
+  </div>
+
+  <div id="board-wrap">
+    <div id="grid-bg"></div>
+    <div id="tiles"></div>
+    <div class="msg-overlay" id="overlay">
+      <h2 id="overlay-title">Perdu !</h2>
+      <button id="overlay-btn">Réessayer</button>
+    </div>
+  </div>
+
+  <p class="howto">
+    <strong>Sur ordinateur :</strong> utilisez les flèches du clavier.<br>
+    <strong>Sur mobile :</strong> glissez le doigt sur le plateau.<br>
+    Chaque fusion rapporte des pièces à dépenser dans la boutique.
+  </p>
+
+  <footer>Fait pour être joué en 30 secondes ou en 30 minutes.</footer>
+
+  <!-- ===== Boutique (modale) ===== -->
+  <div class="modal-backdrop" id="shop-backdrop">
+    <div class="modal">
+      <button class="close-x" id="shop-close">✕</button>
+      <h2>Boutique de thèmes</h2>
+      <div class="coinsline">🪙 <span id="modal-coins">0</span> pièces</div>
+
+      <!-- ===== ZONE PUBLICITAIRE RÉCOMPENSÉE (simulée) =====
+           En production, ce bouton appellerait le SDK de votre réseau
+           publicitaire pour lancer une pub vidéo, ex. avec Google AdMob :
+             rewardedAd.show().then(() => grantReward());
+           Ici, on simule juste un délai de visionnage avant de créditer
+           les pièces, pour montrer le principe. -->
+      <button class="rewardbtn" id="watch-ad-btn">🎬 Regarder une pub pour +20 pièces</button>
+
+      <div class="theme-list" id="theme-list"></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const SIZE = 4;
+
+  // ===== Moteur sonore (généré, pas de fichier audio) =====
+  // On utilise l'API Web Audio pour fabriquer des sons doux type ASMR
+  // à la volée : un "tick" feutré à chaque glissement, et un léger
+  // "pop" à chaque fusion, dont la hauteur monte avec la valeur de la
+  // tuile pour rendre les grosses fusions plus satisfaisantes.
+  let audioCtx = null;
+  let soundOn = true;
+
+  function ensureAudio(){
+    if (!audioCtx){
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new Ctx();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playTick(){
+    if (!soundOn) return;
+    const ctx = ensureAudio();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(420, now);
+    osc.frequency.exponentialRampToValueAtTime(260, now + 0.05);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.09, now + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  function playPop(value){
+    if (!soundOn) return;
+    const ctx = ensureAudio();
+    const now = ctx.currentTime;
+    // La hauteur du "pop" augmente doucement avec la puissance de la tuile.
+    const step = Math.max(0, Math.log2(value) - 1);
+    const freq = 300 + step * 34;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq * 0.6, now);
+    osc.frequency.exponentialRampToValueAtTime(freq, now + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.85, now + 0.16);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.16, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.24);
+  }
+
+  function playSwoosh(){
+    if (!soundOn) return;
+    const ctx = ensureAudio();
+    const now = ctx.currentTime;
+    const bufferSize = ctx.sampleRate * 0.12;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++){
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(900, now);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    noise.connect(filter).connect(gain).connect(ctx.destination);
+    noise.start(now);
+  }
+
+  // ===== Thèmes de la boutique =====
+  const THEMES = {
+    pastel:  { name: 'Pastel (offert)', cost: 0,  colors: ['#FFE3EC','#FFD1DE','#FFB6C9','#FF9AAE','#FF6B6B','#F94F4F','#FFD166','#FFC233','#4ECDC4','#2FA79E','#6B5CA5','#4B3B78'] },
+    bonbon:  { name: 'Bonbon',          cost: 30, colors: ['#FFADAD','#FFD6A5','#FDFFB6','#CAFFBF','#9BF6FF','#A0C4FF','#BDB2FF','#FFC6FF','#FF6B9D','#C44569','#F8B500','#00B894'] },
+    automne: { name: 'Automne',         cost: 40, colors: ['#FFE8D6','#FFD8A8','#FFB672','#FF9F5B','#F4845F','#E76F51','#D65A31','#BC4B24','#8C4A2F','#6B3E26','#4A2E1F','#2E1C15'] },
+    neon:    { name: 'Néon',            cost: 50, colors: ['#F72585','#B5179E','#7209B7','#560BAD','#480CA8','#3A0CA3','#3F37C9','#4361EE','#4895EF','#4CC9F0','#22D3EE','#0EA5E9'] },
+    ocean:   { name: 'Océan',           cost: 60, colors: ['#CAF0F8','#ADE8F4','#90E0EF','#48CAE4','#00B4D8','#0096C7','#0077B6','#023E8A','#03045E','#240046','#3C096C','#5A189A'] }
+  };
+  const VALUE_ORDER = [2,4,8,16,32,64,128,256,512,1024,2048,4096];
+  const RAINBOW_BG = 'linear-gradient(135deg,#FF6B6B,#FFD166,#4ECDC4,#6B5CA5)';
+
+  function contrastColor(hex){
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+    return lum > 0.62 ? '#3B2E4A' : '#ffffff';
+  }
+
+  let grid, score, best, coins, cellSize, gap, won, over, currentTheme, unlockedThemes, gamesPlayed;
+
+  const boardWrap = document.getElementById('board-wrap');
+  const tilesEl = document.getElementById('tiles');
+  const gridBgEl = document.getElementById('grid-bg');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const coinsEl = document.getElementById('coins');
+  const modalCoinsEl = document.getElementById('modal-coins');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayBtn = document.getElementById('overlay-btn');
+  const newGameBtn = document.getElementById('newgame');
+  const shopBtn = document.getElementById('shopbtn');
+  const shopBackdrop = document.getElementById('shop-backdrop');
+  const shopClose = document.getElementById('shop-close');
+  const themeListEl = document.getElementById('theme-list');
+  const watchAdBtn = document.getElementById('watch-ad-btn');
+  const adBanner = document.getElementById('ad-banner');
+  const soundBtn = document.getElementById('soundbtn');
+
+  // ===== Sauvegarde locale =====
+  function loadSave(){
+    try {
+      const raw = localStorage.getItem('fusion-save');
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch(e){ return null; }
+  }
+  function persist(){
+    try {
+      localStorage.setItem('fusion-save', JSON.stringify({
+        best, coins, currentTheme, unlockedThemes, gamesPlayed, soundOn
+      }));
+    } catch(e){}
+  }
+
+  function initSave(){
+    const s = loadSave();
+    best = s?.best || 0;
+    coins = s?.coins || 0;
+    currentTheme = s?.currentTheme || 'pastel';
+    unlockedThemes = s?.unlockedThemes || ['pastel'];
+    gamesPlayed = s?.gamesPlayed || 0;
+    soundOn = s?.soundOn !== undefined ? s.soundOn : true;
+    soundBtn.textContent = soundOn ? '🔊' : '🔇';
+  }
+
+  for (let i = 0; i < SIZE*SIZE; i++){
+    const c = document.createElement('div');
+    c.className = 'cell-bg';
+    gridBgEl.appendChild(c);
+  }
+
+  function newGrid(){ return Array.from({length: SIZE}, () => Array(SIZE).fill(0)); }
+
+  function randomEmptyCell(g){
+    const empties = [];
+    for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) if (g[r][c]===0) empties.push([r,c]);
+    if (!empties.length) return null;
+    return empties[Math.floor(Math.random()*empties.length)];
+  }
+  function addRandomTile(g){
+    const cell = randomEmptyCell(g);
+    if (!cell) return null;
+    const [r,c] = cell;
+    g[r][c] = Math.random() < 0.9 ? 2 : 4;
+    return {r,c,val:g[r][c]};
+  }
+
+  function startGame(fromOverlay){
+    grid = newGrid();
+    score = 0;
+    won = false;
+    over = false;
+    overlay.classList.remove('show');
+    addRandomTile(grid);
+    addRandomTile(grid);
+    updateStats();
+    render();
+
+    gamesPlayed++;
+    persist();
+    // Toutes les 3 parties, on simule un emplacement interstitiel.
+    if (fromOverlay && gamesPlayed % 3 === 0){
+      showInterstitial();
+    }
+  }
+
+  function updateStats(){
+    scoreEl.textContent = score;
+    if (score > best){ best = score; }
+    bestEl.textContent = best;
+    coinsEl.textContent = coins;
+    modalCoinsEl.textContent = coins;
+    persist();
+  }
+
+  function computeMetrics(){
+    const rect = boardWrap.getBoundingClientRect();
+    const inner = rect.width - 20;
+    gap = 10;
+    cellSize = (inner - gap*(SIZE-1)) / SIZE;
+  }
+
+  function styleForValue(val){
+    if (val > 4096) return { bg: RAINBOW_BG, fg: '#ffffff' };
+    const palette = THEMES[currentTheme].colors;
+    const idx = VALUE_ORDER.indexOf(val);
+    const hex = palette[idx] ?? palette[palette.length-1];
+    return { bg: hex, fg: contrastColor(hex) };
+  }
+
+  function render(){
+    computeMetrics();
+    tilesEl.innerHTML = '';
+    for (let r=0;r<SIZE;r++){
+      for (let c=0;c<SIZE;c++){
+        const val = grid[r][c];
+        if (!val) continue;
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        const style = styleForValue(val);
+        tile.style.background = style.bg;
+        tile.style.color = style.fg;
+        tile.style.width = cellSize + 'px';
+        tile.style.height = cellSize + 'px';
+        tile.style.left = c*(cellSize+gap) + 'px';
+        tile.style.top = r*(cellSize+gap) + 'px';
+        tile.style.fontSize = (val < 100 ? cellSize*0.42 : val < 1000 ? cellSize*0.34 : cellSize*0.26) + 'px';
+        tile.textContent = val;
+        tilesEl.appendChild(tile);
+      }
+    }
+  }
+
+  function cloneGrid(g){ return g.map(row => row.slice()); }
+  function gridsEqual(a,b){
+    for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) if (a[r][c]!==b[r][c]) return false;
+    return true;
+  }
+
+  function slideRowLeft(row){
+    let vals = row.filter(v => v !== 0);
+    let gained = 0;
+    for (let i=0;i<vals.length-1;i++){
+      if (vals[i] === vals[i+1]){
+        vals[i] *= 2;
+        gained += vals[i];
+        vals.splice(i+1,1);
+      }
+    }
+    while (vals.length < SIZE) vals.push(0);
+    return {row: vals, gained};
+  }
+
+  function move(dir){
+    if (over) return;
+    const before = cloneGrid(grid);
+    let gained = 0;
+
+    function getLine(i, reverse){
+      let line = [];
+      for (let j=0;j<SIZE;j++) line.push(dir==='left'||dir==='right' ? grid[i][j] : grid[j][i]);
+      if (reverse) line.reverse();
+      return line;
+    }
+    function setLine(i, line, reverse){
+      if (reverse) line.reverse();
+      for (let j=0;j<SIZE;j++){
+        if (dir==='left'||dir==='right') grid[i][j] = line[j]; else grid[j][i] = line[j];
+      }
+    }
+
+    const reverse = (dir === 'right' || dir === 'down');
+    for (let i=0;i<SIZE;i++){
+      const line = getLine(i, reverse);
+      const {row, gained: g} = slideRowLeft(line);
+      gained += g;
+      setLine(i, row, reverse);
+    }
+
+    if (!gridsEqual(before, grid)){
+      score += gained;
+      if (gained > 0){
+        coins += Math.max(1, Math.floor(gained / 8));
+        playPop(gained); // le son monte en hauteur avec la fusion réalisée
+      } else {
+        playSwoosh(); // simple glissement, sans fusion
+      }
+      updateStats();
+      addRandomTile(grid);
+      render();
+      checkWin();
+      checkGameOver();
+    }
+  }
+
+  function checkWin(){
+    if (won) return;
+    for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++){
+      if (grid[r][c] >= 2048){
+        won = true;
+        overlayTitle.textContent = 'Bravo, tuile arc-en-ciel !';
+        overlayBtn.textContent = 'Continuer à jouer';
+        overlay.classList.add('show');
+        overlayBtn.onclick = () => overlay.classList.remove('show');
+        return;
+      }
+    }
+  }
+
+  function canMove(){
+    for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++){
+      if (grid[r][c] === 0) return true;
+      if (c < SIZE-1 && grid[r][c] === grid[r][c+1]) return true;
+      if (r < SIZE-1 && grid[r][c] === grid[r+1][c]) return true;
+    }
+    return false;
+  }
+
+  function checkGameOver(){
+    if (!canMove()){
+      over = true;
+      const bonus = Math.floor(score / 50);
+      if (bonus > 0){ coins += bonus; updateStats(); }
+      overlayTitle.textContent = 'Plus de coups possibles !';
+      overlayBtn.textContent = 'Réessayer';
+      overlay.classList.add('show');
+      overlayBtn.onclick = () => startGame(true);
+    }
+  }
+
+  // ===== Boutique =====
+  function renderShop(){
+    modalCoinsEl.textContent = coins;
+    themeListEl.innerHTML = '';
+    Object.keys(THEMES).forEach(key => {
+      const t = THEMES[key];
+      const unlocked = unlockedThemes.includes(key);
+      const active = currentTheme === key;
+
+      const card = document.createElement('div');
+      card.className = 'theme-card' + (active ? ' active' : '');
+
+      const swatches = document.createElement('div');
+      swatches.className = 'swatches';
+      [t.colors[0], t.colors[4], t.colors[8], t.colors[11]].forEach(hex => {
+        const sw = document.createElement('div');
+        sw.className = 'swatch';
+        sw.style.background = hex;
+        swatches.appendChild(sw);
+      });
+
+      const info = document.createElement('div');
+      info.className = 'theme-info';
+      info.innerHTML = `<div class="name">${t.name}</div><div class="cost">${t.cost === 0 ? 'Débloqué' : t.cost + ' pièces'}</div>`;
+
+      const btn = document.createElement('button');
+      if (active){
+        btn.textContent = 'Actif';
+        btn.className = 'btn-active';
+        btn.disabled = true;
+      } else if (unlocked){
+        btn.textContent = 'Utiliser';
+        btn.className = 'btn-use';
+        btn.onclick = () => { currentTheme = key; persist(); render(); renderShop(); };
+      } else {
+        btn.textContent = 'Acheter';
+        btn.className = 'btn-buy';
+        btn.disabled = coins < t.cost;
+        btn.onclick = () => {
+          if (coins >= t.cost){
+            coins -= t.cost;
+            unlockedThemes.push(key);
+            currentTheme = key;
+            updateStats();
+            persist();
+            renderShop();
+            render();
+          }
+        };
+      }
+
+      card.appendChild(swatches);
+      card.appendChild(info);
+      card.appendChild(btn);
+      themeListEl.appendChild(card);
+    });
+  }
+
+  function openShop(){ shopBackdrop.classList.add('show'); renderShop(); }
+  function closeShop(){ shopBackdrop.classList.remove('show'); }
+
+  shopBtn.addEventListener('click', openShop);
+  shopClose.addEventListener('click', closeShop);
+  shopBackdrop.addEventListener('click', (e) => { if (e.target === shopBackdrop) closeShop(); });
+
+  // ===== Pub récompensée simulée =====
+  watchAdBtn.addEventListener('click', () => {
+    watchAdBtn.disabled = true;
+    watchAdBtn.textContent = '▶️ Lecture de la pub… (3s)';
+    // Ici, un vrai SDK publicitaire afficherait la pub et appellerait
+    // ce callback seulement si elle a été regardée jusqu'au bout.
+    setTimeout(() => {
+      coins += 20;
+      updateStats();
+      renderShop();
+      watchAdBtn.disabled = false;
+      watchAdBtn.textContent = '🎬 Regarder une pub pour +20 pièces';
+    }, 3000);
+  });
+
+  // ===== Interstitiel simulé =====
+  function showInterstitial(){
+    const back = document.createElement('div');
+    back.className = 'modal-backdrop show';
+    back.innerHTML = `
+      <div class="modal" style="text-align:center;">
+        <h2 style="margin-top:0;">Publicité</h2>
+        <p style="color:#7A6E8C; margin-bottom:16px;">Un vrai réseau publicitaire afficherait ici une pub plein écran.</p>
+        <button id="interstitial-close" class="rewardbtn" disabled>Ferme dans 3s…</button>
+      </div>`;
+    document.body.appendChild(back);
+    const btn = back.querySelector('#interstitial-close');
+    let t = 3;
+    const timer = setInterval(() => {
+      t--;
+      if (t > 0){ btn.textContent = `Ferme dans ${t}s…`; }
+      else {
+        clearInterval(timer);
+        btn.textContent = 'Fermer';
+        btn.disabled = false;
+        btn.onclick = () => back.remove();
+      }
+    }, 1000);
+  }
+
+  // ===== Contrôles clavier =====
+  window.addEventListener('keydown', (e) => {
+    const map = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down' };
+    if (map[e.key]){ e.preventDefault(); move(map[e.key]); }
+  });
+
+  // ===== Contrôles tactiles =====
+  let touchStartX = 0, touchStartY = 0;
+  boardWrap.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, {passive:true});
+
+  boardWrap.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const absX = Math.abs(dx), absY = Math.abs(dy);
+    if (Math.max(absX, absY) < 24) return;
+    if (absX > absY) move(dx > 0 ? 'right' : 'left');
+    else move(dy > 0 ? 'down' : 'up');
+  }, {passive:true});
+
+  newGameBtn.addEventListener('click', () => startGame(true));
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? '🔊' : '🔇';
+    persist();
+    if (soundOn) playTick(); // petit retour immédiat pour confirmer
+  });
+  window.addEventListener('resize', render);
+
+  initSave();
+  bestEl.textContent = best;
+  coinsEl.textContent = coins;
+  startGame(false);
+})();
+</script>
+
+</body>
+</html>
